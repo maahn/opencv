@@ -285,9 +285,23 @@ class CvVideoWriter_FFMPEG_proxy CV_FINAL :
     public cv::IVideoWriter
 {
 public:
-    CvVideoWriter_FFMPEG_proxy() { ffmpegWriter = 0; }
-    CvVideoWriter_FFMPEG_proxy(const cv::String& filename, int fourcc, double fps, cv::Size frameSize, bool isColor) { ffmpegWriter = 0; open(filename, fourcc, fps, frameSize, isColor); }
-    virtual ~CvVideoWriter_FFMPEG_proxy() { close(); }
+    CvVideoWriter_FFMPEG_proxy()
+    {
+        ffmpegWriter = 0;
+        quality = 53; // correspnds to libx264 crf 23
+        encoder_preset_i = 6;
+    }
+    CvVideoWriter_FFMPEG_proxy(const cv::String& filename, int fourcc, double fps, cv::Size frameSize, bool isColor)
+    {
+        ffmpegWriter = 0;
+        quality = 53; // correspnds to libx264 crf 23
+        encoder_preset_i = 6;
+        open(filename, fourcc, fps, frameSize, isColor, quality, encoder_preset_i);
+    }
+    virtual ~CvVideoWriter_FFMPEG_proxy()
+    {
+        close();
+    }
 
     int getCaptureDomain() const CV_OVERRIDE { return cv::CAP_FFMPEG; }
 
@@ -297,12 +311,12 @@ public:
             return;
         CV_Assert(image.depth() == CV_8U);
 
-        icvWriteFrame_FFMPEG_p(ffmpegWriter, (const uchar*)image.getMat().ptr(), (int)image.step(), image.cols(), image.rows(), image.channels(), 0);
+        icvWriteFrame_FFMPEG_p(ffmpegWriter, (const uchar*)image.getMat().ptr(), (int)image.step(), image.cols(), image.rows(), image.channels(), 0 , quality, encoder_preset_i);
     }
-    virtual bool open( const cv::String& filename, int fourcc, double fps, cv::Size frameSize, bool isColor )
+    virtual bool open( const cv::String& filename, int fourcc, double fps, cv::Size frameSize, bool isColor, double quality, double encoder_preset_i )
     {
         close();
-        ffmpegWriter = icvCreateVideoWriter_FFMPEG_p( filename.c_str(), fourcc, fps, frameSize.width, frameSize.height, isColor );
+        ffmpegWriter = icvCreateVideoWriter_FFMPEG_p( filename.c_str(), fourcc, fps, frameSize.width, frameSize.height, isColor, quality, encoder_preset_i );
         return ffmpegWriter != 0;
     }
 
@@ -318,11 +332,42 @@ public:
         ffmpegWriter = 0;
     }
 
-    virtual double getProperty(int) const CV_OVERRIDE { return 0; }
-    virtual bool setProperty(int, double) CV_OVERRIDE { return false; }
+    double getProperty(int propId) const CV_OVERRIDE
+    {
+printf("CvVidoWriter::getProperty %i \n", propId);
+        if( propId == VIDEOWRITER_PROP_QUALITY )
+            return quality;
+        if( propId == VIDEOWRITER_PROP_PRESET )
+            return encoder_preset_i;
+        return 0.;
+    }
+
+    bool setProperty(int propId, double value) CV_OVERRIDE
+    {
+
+printf("CvVidoWriter::setProperty %i %f \n", propId, value);
+        if( propId == VIDEOWRITER_PROP_QUALITY )
+        {
+            quality = value;
+            return true;
+        }
+        if( propId == VIDEOWRITER_PROP_PRESET)
+        {
+            if ((encoder_preset_i > 0) && (encoder_preset_i <= 9))
+            {
+                encoder_preset_i = value;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     virtual bool isOpened() const CV_OVERRIDE { return ffmpegWriter != 0; }
 
 protected:
+    double quality;
+    double encoder_preset_i;
     CvVideoWriter_FFMPEG* ffmpegWriter;
 };
 

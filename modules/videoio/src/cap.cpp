@@ -391,8 +391,10 @@ bool VideoWriter::isOpened() const
 bool VideoWriter::set(int propId, double value)
 {
     CV_CheckNE(propId, (int)CAP_PROP_BACKEND, "Can't set read-only property");
+printf("VideoWriter::set %i %f \n", propId, value);
 
     if (!iwriter.empty())
+        printf("VideoWriter::set A %i %f\n", propId, value);
         return iwriter->setProperty(propId, value);
     return false;
 }

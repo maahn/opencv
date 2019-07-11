@@ -47,6 +47,7 @@
 #include <assert.h>
 #include <algorithm>
 #include <limits>
+#include <map>
 
 #ifndef __OPENCV_BUILD
 #define CV_FOURCC(c1, c2, c3, c4) (((c1) & 255) + (((c2) & 255) << 8) + (((c3) & 255) << 16) + (((c4) & 255) << 24))
@@ -334,6 +335,20 @@ static int get_number_of_cpus(void)
     return 1;
 #endif
 }
+
+
+std::map<int, std::string> encoder_presets = {
+    { 1 , "ultrafast" },
+    { 2 , "superfast" },
+    { 3 , "veryfast" },
+    { 4 , "faster" },
+    { 5 , "fast" },
+    { 6 , "medium" },
+    { 7 , "slow" },
+    { 8 , "veryslow" },
+    { 9 , "placebo" },
+};
+
 
 
 struct Image_FFMPEG
@@ -1381,9 +1396,10 @@ bool CvCapture_FFMPEG::setProperty( int property_id, double value )
 struct CvVideoWriter_FFMPEG
 {
     bool open( const char* filename, int fourcc,
-               double fps, int width, int height, bool isColor );
+               double fps, int width, int height, bool isColor,
+               double quality, double encoder_preset_i );
     void close();
-    bool writeFrame( const unsigned char* data, int step, int width, int height, int cn, int origin );
+    bool writeFrame( const unsigned char* data, int step, int width, int height, int cn, int origin, double quality, double encoder_preset_i );
 
     void init();
 
@@ -1403,6 +1419,12 @@ struct CvVideoWriter_FFMPEG
     int               frame_idx;
     bool              ok;
     struct SwsContext *img_convert_ctx;
+    double            used_quality;
+    double            used_encoder_preset_i;
+    int               max_quality;
+    int               _quality;
+
+
 };
 
 static const char * icvFFMPEGErrStr(int err)
@@ -1481,6 +1503,10 @@ void CvVideoWriter_FFMPEG::init()
     frame_width = frame_height = 0;
     frame_idx = 0;
     ok = false;
+    used_quality = 0;
+    used_encoder_preset_i = 0;
+    max_quality = 51;
+
 }
 
 /**
@@ -1525,12 +1551,22 @@ static AVFrame * icv_alloc_picture_FFMPEG(int pix_fmt, int width, int height, bo
 static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
                                              CV_CODEC_ID codec_id,
                                              int w, int h, int bitrate,
-                                             double fps, int pixel_format)
+                                             double fps, int pixel_format,
+                                             double quality, double encoder_preset_i)
 {
     AVCodecContext *c;
     AVStream *st;
     int frame_rate, frame_rate_base;
     AVCodec *codec;
+    const int AVmax_quality = 51;
+    int AV_quality;
+
+    AV_quality = AVmax_quality - cvCeil(quality*0.01*AVmax_quality);
+
+
+printf("OPENCV: quality %f \n",quality);
+printf("OPENCV: encoder_preset_i %f \n",encoder_preset_i);
+printf("OPENCV: encoder_preset %s \n",encoder_presets[cvFloor(encoder_preset_i)]);
 
 #if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(53, 10, 0)
     st = avformat_new_stream(oc, 0);
@@ -1646,9 +1682,10 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
       c->gop_size = -1;
       c->qmin = -1;
       c->bit_rate = 0;
-      if (c->priv_data)
-          av_opt_set(c->priv_data,"crf","23", 0);
-          av_opt_set(c->priv_data, "preset", "ultrafast", 0);
+      if (c->priv_data) {
+          av_opt_set(c->priv_data,"crf",std::to_string(AV_quality).c_str(), 0);
+          av_opt_set(c->priv_data, "preset", encoder_presets[cvFloor(encoder_preset_i)].c_str(), 0);
+      }
     }
 #endif
 
@@ -1757,7 +1794,7 @@ static int icv_av_write_frame_FFMPEG( AVFormatContext * oc, AVStream * video_st,
 }
 
 /// write a frame with FFMPEG
-bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int width, int height, int cn, int origin )
+bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int width, int height, int cn, int origin, double quality, double encoder_preset_i  )
 {
     // check parameters
     if (input_pix_fmt == AV_PIX_FMT_BGR24) {
@@ -1785,6 +1822,37 @@ bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int 
 #else
     AVCodecContext *c = &(video_st->codec);
 #endif
+
+#if LIBAVUTIL_BUILD > CALC_FFMPEG_VERSION(51,11,0)
+
+
+
+
+
+    if (c->codec_id == AV_CODEC_ID_H264) {
+      if (c->priv_data) {
+
+        if (used_encoder_preset_i != encoder_preset_i) {
+
+            av_opt_set(c->priv_data, "preset", encoder_presets[cvFloor(encoder_preset_i)].c_str(), 0);
+            printf("OPENCV WRITE: set encoder_preset to %s \n",encoder_presets[cvFloor(encoder_preset_i)].c_str());
+
+            used_encoder_preset_i = encoder_preset_i;
+        }
+        if (used_quality != quality) {
+            _quality = max_quality - cvCeil(quality*0.01*max_quality);
+            // _quality_str = std::to_string(_quality);
+             av_opt_set(c->priv_data,"crf",std::to_string(_quality).c_str(), 0);
+             used_quality = quality;
+
+            printf("OPENCV WRITE: set quality to %d \n",_quality);
+        }
+
+
+      }
+    }
+#endif
+
 
     // FFmpeg contains SIMD optimizations which can sometimes read data past
     // the supplied input buffer.
@@ -1991,7 +2059,8 @@ static inline void cv_ff_codec_tag_dump(const AVCodecTag *const *tags)
 
 /// Create a video writer object that uses FFMPEG
 bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
-                                 double fps, int width, int height, bool is_color )
+                                 double fps, int width, int height, bool is_color,
+                                 double quality, double encoder_preset_i )
 {
     InternalFFMpegRegister::init();
     CV_CODEC_ID codec_id = CV_CODEC(CODEC_ID_NONE);
@@ -2220,7 +2289,8 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
     // TODO -- safe to ignore output audio stream?
     video_st = icv_add_video_stream_FFMPEG(oc, codec_id,
                                            width, height, (int)(bitrate + 0.5),
-                                           fps, codec_pix_fmt);
+                                           fps, codec_pix_fmt,
+                                           quality, encoder_preset_i);
 
     /* set the output parameters (must be done even if no
    parameters). */
@@ -2399,13 +2469,13 @@ int cvRetrieveFrame_FFMPEG(CvCapture_FFMPEG* capture, unsigned char** data, int*
 }
 
 CvVideoWriter_FFMPEG* cvCreateVideoWriter_FFMPEG( const char* filename, int fourcc, double fps,
-                                                  int width, int height, int isColor )
+                                                  int width, int height, int isColor, double quality, double encoder_preset_i)
 {
     CvVideoWriter_FFMPEG* writer = (CvVideoWriter_FFMPEG*)malloc(sizeof(*writer));
     if (!writer)
         return 0;
     writer->init();
-    if( writer->open( filename, fourcc, fps, width, height, isColor != 0 ))
+    if( writer->open( filename, fourcc, fps, width, height, isColor != 0,  quality,  encoder_preset_i))
         return writer;
     writer->close();
     free(writer);
@@ -2425,9 +2495,10 @@ void cvReleaseVideoWriter_FFMPEG( CvVideoWriter_FFMPEG** writer )
 
 int cvWriteFrame_FFMPEG( CvVideoWriter_FFMPEG* writer,
                          const unsigned char* data, int step,
-                         int width, int height, int cn, int origin)
+                         int width, int height, int cn, int origin,
+                         double quality, double encoder_preset_i)
 {
-    return writer->writeFrame(data, step, width, height, cn, origin);
+    return writer->writeFrame(data, step, width, height, cn, origin, quality, encoder_preset_i);
 }
 
 

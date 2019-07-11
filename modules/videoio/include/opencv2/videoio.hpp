@@ -185,7 +185,8 @@ enum VideoCaptureProperties {
 enum VideoWriterProperties {
   VIDEOWRITER_PROP_QUALITY = 1,    //!< Current quality (0..100%) of the encoded videostream. Can be adjusted dynamically in some codecs.
   VIDEOWRITER_PROP_FRAMEBYTES = 2, //!< (Read-only): Size of just encoded video frame. Note that the encoding order may be different from representation order.
-  VIDEOWRITER_PROP_NSTRIPES = 3    //!< Number of stripes for parallel encoding. -1 for auto detection.
+  VIDEOWRITER_PROP_NSTRIPES = 3,    //!< Number of stripes for parallel encoding. -1 for auto detection.
+  VIDEOWRITER_PROP_PRESET = 4    //!< Encoder presets ultrafast (1), superfast (2), veryfast (3), faster (4), fast (5), medium (6, default), slow (7) and veryslow (8)
 };
 
 //! @} videoio_flags_base
