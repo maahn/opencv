@@ -1566,7 +1566,7 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
 
 printf("OPENCV: quality %f \n",quality);
 printf("OPENCV: encoder_preset_i %f \n",encoder_preset_i);
-printf("OPENCV: encoder_preset %s \n",encoder_presets[cvFloor(encoder_preset_i)]);
+printf("OPENCV: encoder_preset %s \n",encoder_presets[cvFloor(encoder_preset_i)].c_str());
 
 #if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(53, 10, 0)
     st = avformat_new_stream(oc, 0);
