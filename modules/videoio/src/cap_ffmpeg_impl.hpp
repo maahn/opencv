@@ -1682,10 +1682,10 @@ printf("OPENCV: encoder_preset %s \n",encoder_presets[cvFloor(encoder_preset_i)]
       c->gop_size = -1;
       c->qmin = -1;
       c->bit_rate = 0;
-      if (c->priv_data) {
-          av_opt_set(c->priv_data,"crf",std::to_string(AV_quality).c_str(), 0);
-          av_opt_set(c->priv_data, "preset", encoder_presets[cvFloor(encoder_preset_i)].c_str(), 0);
-      }
+      // if (c->priv_data) {
+      //     av_opt_set(c->priv_data,"crf",std::to_string(AV_quality).c_str(), 0);
+      //     av_opt_set(c->priv_data, "preset", encoder_presets[cvFloor(encoder_preset_i)].c_str(), 0);
+      // }
     }
 #endif
 
@@ -1836,7 +1836,9 @@ bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int 
 
             av_opt_set(c->priv_data, "preset", encoder_presets[cvFloor(encoder_preset_i)].c_str(), 0);
             printf("OPENCV WRITE: set encoder_preset to %s \n",encoder_presets[cvFloor(encoder_preset_i)].c_str());
-
+char prop[128];
+av_opt_get(c->priv_data,"preset",0,(uint8_t**)&prop);
+printf("OPENCV WRITE: get preset  %s \n", prop);
             used_encoder_preset_i = encoder_preset_i;
         }
         if (used_quality != quality) {
@@ -1846,6 +1848,9 @@ bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int 
              used_quality = quality;
 
             printf("OPENCV WRITE: set quality to %d \n",_quality);
+char prop[128];
+av_opt_get(c->priv_data,"crf",0,(uint8_t**)&prop);
+printf("OPENCV WRITE: get quality  %s \n", prop);
         }
 
 
