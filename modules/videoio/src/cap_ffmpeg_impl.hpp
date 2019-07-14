@@ -1646,9 +1646,22 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
       c->gop_size = -1;
       c->qmin = -1;
       c->bit_rate = 0;
-      if (c->priv_data)
-          av_opt_set(c->priv_data,"crf","23", 0);
-          av_opt_set(c->priv_data, "preset", "ultrafast", 0);
+      if (c->priv_data) {
+        char *env_crf(getenv("OPENCV_CRF"));                                                      
+        if (env_crf != NULL) {                                                                 
+            av_opt_set(c->priv_data,"crf",env_crf, 0);
+            std::cout << "OPENCV: Found and applied 'OPENCV_CRF="<<env_crf<<"'"<<std::endl;                                                      
+        }   else {
+            av_opt_set(c->priv_data,"crf","23", 0);
+        }
+        char *env_preset(getenv("OPENCV_PRESET"));                                                      
+        if (env_preset != NULL) {                                                                 
+            av_opt_set(c->priv_data,"preset",env_preset, 0);
+            std::cout << "OPENCV: Found and applied 'OPENCV_PRESET="<<env_preset<<"'"<<std::endl;           
+        }   else {
+            av_opt_set(c->priv_data,"preset","medium", 0);
+        }
+      }
     }
 #endif
 
