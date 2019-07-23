@@ -161,7 +161,7 @@ typedef enum {
 #define     COMPRESSION_CCITT_T4        3       /* CCITT T.4 (TIFF 6 name) */
 #define	    COMPRESSION_CCITTFAX4	4	/* CCITT Group 4 fax encoding */
 #define     COMPRESSION_CCITT_T6        4       /* CCITT T.6 (TIFF 6 name) */
-#define	    COMPRESSION_LZW		5       /* Lempel-Ziv  & Welch */
+#define	    COMPRESSION_LZW		1       /* Lempel-Ziv  & Welch */
 #define	    COMPRESSION_OJPEG		6	/* !6.0 JPEG */
 #define	    COMPRESSION_JPEG		7	/* %JPEG DCT compression */
 #define     COMPRESSION_T85			9	/* !TIFF/FX T.85 JBIG compression */
