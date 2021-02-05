@@ -919,7 +919,19 @@ bool CvCapture_FFMPEG::open( const char* _filename )
 //#ifdef FF_API_THREAD_INIT
 //        avcodec_thread_init(enc, get_number_of_cpus());
 //#else
-        enc->thread_count = get_number_of_cpus();
+
+        char *env_threadcount(getenv("OPENCV_FFMPEG_THREADCOUNT"));                                                      
+        if (env_threadcount != NULL) {
+            int env_threadcount_int = strtol (env_threadcount,NULL,0);                                                               
+            enc->thread_count =env_threadcount_int;
+            std::cout << "OPENCV: Found and applied OPENCV_FFMPEG_THREADCOUNT'="<<env_threadcount_int<<"'"<<std::endl;                                                      
+        }   else {
+            enc->thread_count = get_number_of_cpus();
+        }
+
+
+
+        
 //#endif
 
 #if LIBAVFORMAT_BUILD < CALC_FFMPEG_VERSION(53, 2, 0)
@@ -1647,17 +1659,17 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
       c->qmin = -1;
       c->bit_rate = 0;
       if (c->priv_data) {
-        char *env_crf(getenv("OPENCV_CRF"));                                                      
+        char *env_crf(getenv("OPENCV_FFMPEG_CRF"));                                                      
         if (env_crf != NULL) {                                                                 
             av_opt_set(c->priv_data,"crf",env_crf, 0);
-            std::cout << "OPENCV: Found and applied 'OPENCV_CRF="<<env_crf<<"'"<<std::endl;                                                      
+            std::cout << "OPENCV: Found and applied 'OPENCV_FFMPEG_CRF="<<env_crf<<"'"<<std::endl;                                                      
         }   else {
             av_opt_set(c->priv_data,"crf","23", 0);
         }
-        char *env_preset(getenv("OPENCV_PRESET"));                                                      
+        char *env_preset(getenv("OPENCV_FFMPEG_PRESET"));                                                      
         if (env_preset != NULL) {                                                                 
             av_opt_set(c->priv_data,"preset",env_preset, 0);
-            std::cout << "OPENCV: Found and applied 'OPENCV_PRESET="<<env_preset<<"'"<<std::endl;           
+            std::cout << "OPENCV: Found and applied 'OPENCV_FFMPEG_PRESET="<<env_preset<<"'"<<std::endl;           
         }   else {
             av_opt_set(c->priv_data,"preset","medium", 0);
         }
