@@ -924,7 +924,7 @@ bool CvCapture_FFMPEG::open( const char* _filename )
         if (env_threadcount != NULL) {
             int env_threadcount_int = strtol (env_threadcount,NULL,0);                                                               
             enc->thread_count =env_threadcount_int;
-            std::cout << "OPENCV: Found and applied OPENCV_FFMPEG_THREADCOUNT'="<<env_threadcount_int<<"'"<<std::endl;                                                      
+            std::cout << "OPENCV capture: Found and applied OPENCV_FFMPEG_THREADCOUNT'="<<env_threadcount_int<<"'"<<std::endl;                                                      
         }   else {
             enc->thread_count = get_number_of_cpus();
         }
@@ -1655,6 +1655,20 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
      preset system. Also, use a crf encode with the default quality rating,
      this seems easier than finding an appropriate default bitrate. */
     if (c->codec_id == AV_CODEC_ID_H264) {
+
+
+        char *env_threadcount(getenv("OPENCV_FFMPEG_THREADCOUNT"));                                                      
+        if (env_threadcount != NULL) {
+            int env_threadcount_int = strtol (env_threadcount,NULL,0);                                                               
+            c->thread_count =env_threadcount_int;
+            std::cout << "OPENCV: Found and applied OPENCV_FFMPEG_THREADCOUNT="<<env_threadcount_int<<"'"<<std::endl;                                                      
+        }   else {
+            std::cout << "OPENCV: Did not find and apply OPENCV_FFMPEG_THREADCOUNT"<<std::endl;                                                      
+        }
+
+
+
+
       c->gop_size = -1;
       c->qmin = -1;
       c->bit_rate = 0;
